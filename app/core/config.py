@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o"
     MAX_SUPERVISOR_ITERATIONS: int = 5
     LOG_LEVEL: str = "INFO"
+    QDRANT_URL: str = ":memory:"  # in-memory for demo; use "http://localhost:6333" for production
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

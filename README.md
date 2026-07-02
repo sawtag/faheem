@@ -15,6 +15,9 @@ flowchart TD
     orchestrator -->|Phase 1 - parallel| rs["Researching & Sourcing\n• Screen Universe\n• Market Data & News\n• Transcript Parser"]
     orchestrator -->|Phase 1 - parallel| di["Document Intelligence\n• Document Extractor"]
 
+    qdrant[("Qdrant Vector DB\n(semantic search)")]
+    di <-->|store & retrieve| qdrant
+
     rs --> p2_join["Phase 2 Transition"]
     di --> p2_join
 
@@ -85,6 +88,7 @@ cp .env.example .env
 | `OPENAI_API_KEY` | — | Required if using OpenAI |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-5` | Model name |
 | `OPENAI_MODEL` | `gpt-4o` | Model name |
+| `QDRANT_URL` | `:memory:` | Qdrant URL (in-memory for demo, `http://localhost:6333` for production) |
 
 ---
 
