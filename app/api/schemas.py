@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -13,11 +13,10 @@ class AgentOutput(BaseModel):
     error: str | None = None
 
 
-class RouterDecision(BaseModel):
-    """LLM structured output schema for the router node."""
+class OrchestratorDecision(BaseModel):
+    """LLM structured output schema for the orchestrator node."""
 
-    route: Literal["analysis", "simple_query", "unknown"]
-    active_agents: list[str]
+    active_teams: list[str]
     reasoning: str
 
 
@@ -31,10 +30,10 @@ class ReportSchema(BaseModel):
 class AnalyzeRequest(BaseModel):
     query: str
     context: dict[str, Any] = Field(default_factory=dict)
-    agents: list[str] | None = Field(
+    teams: list[str] | None = Field(
         default=None,
-        description="Optional: force specific agents (e.g. ['market', 'risk']). "
-        "If omitted, the router decides.",
+        description="Optional: force specific teams (e.g. ['researching_sourcing', 'modeling_valuation']). "
+        "If omitted, the orchestrator decides.",
     )
 
 
@@ -44,4 +43,17 @@ class AnalyzeResponse(BaseModel):
     agent_results: list[AgentOutput]
     report_sections: dict[str, str]
     summary_bullets: list[str]
+    compliance_result: dict[str, Any] | None
+    human_decision: str
+    errors: list[str]
+
+
+class MonitorRequest(BaseModel):
+    query: str
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
+class MonitorResponse(BaseModel):
+    request_id: str
+    agent_results: list[AgentOutput]
     errors: list[str]

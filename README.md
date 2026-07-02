@@ -2,7 +2,7 @@
 
 > THE BEST TEAM AND PROJECT IN THE WORLD
 
-A multi-agent financial analysis system built with **LangGraph** + **FastAPI**. Specialist agents analyze different financial dimensions in parallel and synthesize a unified response.
+A multi-agent financial analysis system built with **LangGraph** + **FastAPI**. Specialized teams of agents analyze different financial dimensions across phased execution, with human-in-the-loop review and compliance verification.
 
 ---
 
@@ -10,39 +10,56 @@ A multi-agent financial analysis system built with **LangGraph** + **FastAPI**. 
 
 ```mermaid
 flowchart TD
-    START([START]) --> router["router\n(classify + set active_agents)"]
+    START([START]) --> orchestrator["Orchestrator\n(route query to teams)"]
 
-    router -->|route == 'analysis'| supervisor["supervisor\n(dispatch loop)"]
-    router -->|route == 'simple_query'| synthesizer
+    orchestrator -->|Phase 1 - parallel| rs["Researching & Sourcing\n• Screen Universe\n• Market Data & News\n• Transcript Parser"]
+    orchestrator -->|Phase 1 - parallel| di["Document Intelligence\n• Document Extractor"]
 
-    supervisor -->|Send: 'market'| market_agent["market_agent"]
-    supervisor -->|Send: 'risk'| risk_agent["risk_agent"]
-    supervisor -->|Send: 'sentiment'| sentiment_agent["sentiment_agent"]
-    supervisor -->|Send: 'portfolio'| portfolio_agent["portfolio_agent"]
+    rs --> p2_join["Phase 2 Transition"]
+    di --> p2_join
 
-    market_agent    -->|writes agent_outputs| supervisor
-    risk_agent      -->|writes agent_outputs| supervisor
-    sentiment_agent -->|writes agent_outputs| supervisor
-    portfolio_agent -->|writes agent_outputs| supervisor
+    p2_join -->|Phase 2 - parallel| mv["Modeling & Valuation\n• DCF\n• LBO\n• Credit & Fixed Income\n• Blended Valuation"]
+    p2_join -->|Phase 2 - parallel| cp["Comparables & Precedents\n• Trading Comps\n• Precedent Transactions\n• Multiple Normalizer"]
 
-    supervisor -->|all agents done| document_producer["document_producer\n(structure report)"]
-    supervisor -->|agents pending| supervisor
+    mv --> dw["Deliverable Writing\n• IC/Credit Memos\n• Research Notes\n• Pitch Decks\n• Sponsor Outreach"]
+    cp --> dw
 
-    document_producer --> synthesizer["synthesizer\n(final output)"]
-    synthesizer --> END([END])
+    dw --> vc["Verification & Compliance\n• Shariah Screening\n• Fact Check\n• Sanctions & Conflicts\n• Confidence Flags"]
+
+    vc --> hr["Human Review\n(approve / reject)"]
+
+    hr -->|approved| dp["Document Producer\n(structure report)"]
+    hr -->|rejected| orchestrator
+
+    dp --> synth["Synthesizer\n(final output)"]
+    synth --> END([END])
+```
+
+### Monitoring Flow
+
+```mermaid
+flowchart LR
+    START([START]) --> mp["Monitoring & Portfolio\n• Holdings Monitor\n• Alerts\n• Periodic Reports\n• CRM Pipeline Syncer"]
+    mp --> END([END])
 ```
 
 ### Components
 
 | Component | File | Role |
 |---|---|---|
-| **Router** | `app/graph/nodes/router.py` | Classifies query, selects which agents to invoke |
-| **Supervisor** | `app/graph/nodes/supervisor.py` | Dispatches agents in parallel, tracks completion |
-| **Analysis agents** | `app/graph/teams/analysis/` | Specialist sub-agents (market, risk, sentiment, portfolio) |
-| **Document producer** | `app/graph/nodes/document_producer.py` | Structures agent outputs into a report |
+| **Orchestrator** | `app/graph/nodes/orchestrator.py` | Routes query to the right teams via LLM |
+| **Researching & Sourcing** | `app/graph/teams/researching_sourcing/` | Screen universe, market data, earnings transcripts |
+| **Document Intelligence** | `app/graph/teams/document_intelligence/` | Extract and parse financial documents |
+| **Modeling & Valuation** | `app/graph/teams/modeling_valuation/` | DCF, LBO, credit analysis, blended valuation |
+| **Comparables & Precedents** | `app/graph/teams/comparables_precedents/` | Trading comps, precedent transactions, multiples |
+| **Deliverable Writing** | `app/graph/teams/deliverable_writing/` | Memos, research notes, pitch decks, outreach |
+| **Verification & Compliance** | `app/graph/teams/verification_compliance/` | Shariah screening, fact-check, sanctions, confidence |
+| **Monitoring & Portfolio** | `app/graph/teams/monitoring_portfolio/` | Holdings, alerts, periodic reports, CRM sync |
+| **Human Review** | `app/graph/nodes/human_review.py` | Approve or reject with re-route to orchestrator |
+| **Document Producer** | `app/graph/nodes/document_producer.py` | Structures agent outputs into a report |
 | **Synthesizer** | `app/graph/nodes/synthesizer.py` | Writes the final natural-language response |
 | **Controller** | `app/api/controller.py` | Orchestrates graph invocation, maps result to response |
-| **Routes** | `app/api/routes.py` | HTTP endpoints (thin layer, no business logic) |
+| **Routes** | `app/api/routes.py` | HTTP endpoints (`/analyze`, `/monitor`, `/health`) |
 
 ---
 
@@ -68,7 +85,6 @@ cp .env.example .env
 | `OPENAI_API_KEY` | — | Required if using OpenAI |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-5` | Model name |
 | `OPENAI_MODEL` | `gpt-4o` | Model name |
-| `MAX_SUPERVISOR_ITERATIONS` | `5` | Loop guard for the supervisor |
 
 ---
 
@@ -93,11 +109,11 @@ Run a financial analysis query through the multi-agent pipeline.
 {
   "query": "What is the risk profile of AAPL right now?",
   "context": {},
-  "agents": ["market", "risk"]
+  "teams": ["researching_sourcing", "modeling_valuation"]
 }
 ```
 
-- `agents` is optional — if omitted, the router decides which agents to invoke.
+- `teams` is optional — if omitted, the orchestrator decides which teams to invoke.
 
 **Response**
 ```json
@@ -106,7 +122,7 @@ Run a financial analysis query through the multi-agent pipeline.
   "final_output": "Based on the analysis...",
   "agent_results": [
     {
-      "agent_name": "market",
+      "agent_name": "screen_universe",
       "analysis": "...",
       "confidence": 0.85,
       "metadata": {},
@@ -118,7 +134,21 @@ Run a financial analysis query through the multi-agent pipeline.
     "Risk Assessment": "..."
   },
   "summary_bullets": ["Strong uptrend", "Elevated volatility"],
+  "compliance_result": { "passed": true },
+  "human_decision": "approved",
   "errors": []
+}
+```
+
+### `POST /monitor`
+
+Run portfolio monitoring queries.
+
+**Request**
+```json
+{
+  "query": "Check current holdings and alert on any threshold breaches",
+  "context": {}
 }
 ```
 
@@ -132,10 +162,10 @@ Run a financial analysis query through the multi-agent pipeline.
 
 ## Adding a New Agent
 
-1. Create `app/graph/teams/analysis/my_agent.py`:
+1. Create `app/graph/teams/<team_name>/my_agent.py`:
 
 ```python
-from app.graph.teams.analysis.base_agent import BaseAnalysisAgent
+from app.graph.teams.base_agent import BaseAnalysisAgent
 from app.api.schemas import AgentOutput
 
 class MyAgent(BaseAnalysisAgent):
@@ -146,18 +176,7 @@ class MyAgent(BaseAnalysisAgent):
         return AgentOutput(agent_name=self.name, analysis="...", confidence=0.8)
 ```
 
-2. Register it in `app/graph/teams/analysis/__init__.py`:
-
-```python
-from app.graph.teams.analysis.my_agent import MyAgent
-
-AGENT_REGISTRY = {
-    ...,
-    "my_agent": MyAgent(),
-}
-```
-
-That's it — the router, supervisor, and graph wiring pick it up automatically.
+2. Register it in the team's `__init__.py` and add it to the agents list.
 
 ---
 
@@ -186,9 +205,19 @@ app/
 │   ├── config.py              # settings (pydantic-settings)
 │   └── llm.py                 # LLM factory (Anthropic / OpenAI)
 ├── graph/
-│   ├── graph.py               # StateGraph assembly
+│   ├── graph.py               # StateGraph assembly (phased execution)
 │   ├── state.py               # FinancialAnalysisState TypedDict
-│   ├── nodes/                 # router, supervisor, document_producer, synthesizer
-│   └── teams/analysis/        # BaseAnalysisAgent + all sub-agents
-└── prompts/                   # system prompts for each node
+│   ├── nodes/                 # orchestrator, human_review, document_producer, synthesizer
+│   └── teams/                 # 7 specialized teams with 25+ agents
+│       ├── base_agent.py
+│       ├── researching_sourcing/
+│       ├── document_intelligence/
+│       ├── modeling_valuation/
+│       ├── comparables_precedents/
+│       ├── deliverable_writing/
+│       ├── verification_compliance/
+│       └── monitoring_portfolio/
+├── prompts/                   # system prompts for each team and node
+data/
+└── synthetic/                 # synthetic data factory for demo
 ```

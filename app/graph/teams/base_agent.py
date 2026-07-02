@@ -6,12 +6,21 @@ import structlog
 
 from app.api.schemas import AgentOutput
 from app.graph.state import FinancialAnalysisState
+from data.synthetic.factory import DataFactory
 
 log = structlog.get_logger()
+
+# Singleton factory — shared across all agents; swap for real adapters per-agent later
+_factory = DataFactory()
 
 
 class BaseAnalysisAgent(ABC):
     name: str  # Must be overridden by each subclass
+
+    @property
+    def data(self) -> DataFactory:
+        """Access to synthetic (or real, once swapped) data sources."""
+        return _factory
 
     @abstractmethod
     async def analyze(self, state: FinancialAnalysisState) -> AgentOutput:
@@ -35,5 +44,4 @@ class BaseAnalysisAgent(ABC):
                 metadata={},
                 error=str(exc),
             ).model_dump()
-        # Returns a list so the Annotated reducer in state concatenates safely
         return {"agent_outputs": [result]}

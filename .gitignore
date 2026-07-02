@@ -222,3 +222,13 @@ __marimo__/
 .env.*.local
 langgraph.json
 .langgraph/
+
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/

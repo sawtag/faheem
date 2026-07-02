@@ -12,19 +12,22 @@ class FinancialAnalysisState(TypedDict):
     context: dict[str, Any]
 
     # ---- Routing ----
-    route: Literal["analysis", "simple_query", "unknown"]
-    active_agents: list[str]  # agents to invoke, set by router or caller
+    active_teams: list[str]  # teams to invoke, set by orchestrator or caller
 
-    # ---- Agent outputs — reducer makes parallel Send writes safe ----
+    # ---- Outputs — reducers make parallel team writes safe ----
     agent_outputs: Annotated[list[dict], operator.add]
+    completed_teams: Annotated[list[str], operator.add]
 
-    # ---- Supervisor bookkeeping ----
-    completed_agents: list[str]
-    supervisor_iterations: int
+    # ---- Compliance ----
+    compliance_result: dict | None  # populated by verification_compliance team
+
+    # ---- Human review ----
+    human_decision: Literal["approved", "rejected", "pending"]
+    revision_notes: str
 
     # ---- Document / final ----
-    report: dict | None  # structured report from document_producer
-    final_output: str  # human-readable answer from synthesizer
+    report: dict | None       # structured report from document_producer
+    final_output: str         # human-readable answer from synthesizer
 
     # ---- Metadata ----
     request_id: str
